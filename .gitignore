@@ -1,0 +1,21 @@
+# History files
+analysis_r/.Rhistory
+analysis_r/.Rapp.history
+
+# Session Data files
+analysis_r/.RData
+
+# User-specific files
+analysis_r/.Ruserdata
+
+# Example code in package build process
+*-Ex.R
+
+# Output files from R CMD build
+analysis_r/*.tar.gz
+
+# Output files from R CMD check
+/*.Rcheck/
+
+# RStudio files
+analysis_r/.Rproj.user/
