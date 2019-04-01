@@ -1,0 +1,59 @@
+---
+title: "20190401 test sequence"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(migrationminer)
+source('windroseplot.r')
+```
+
+define grouping variable
+```{r}
+strata <- 'TrackObjects_Label'
+```
+
+load profiles 
+```{r}
+profiles <- read_csv("../profiles/201903_testsequence/IdentifyPrimaryObjects.csv") %>% 
+  mutate(Metadata_timepoint = as.numeric(Metadata_timepoint)) %>%
+  group_by(TrackObjects_Label)
+```
+
+Create tracking profiles using migrationminer::track
+```{r}
+tracks <- track(
+  profiles, 
+  strata = strata,
+  t_var = "Metadata_timepoint"
+  )  %>% 
+  print
+```
+
+A quick assessment of the track quality. A VOT >0.9 is a good tracking quality, this tracking result has a VOT = 0.78 that shows that the tracking could be improved. 
+```{r}
+assess(tracks) %>% print
+```
+
+Visualization of the migration pattern using a wind rose style plot. 
+```{r}
+# we need to rotate all angles 
+population <- tracks %>%
+  filter(Track_Length > 19) %>%
+  mutate(Track_Angle = Track_Angle + pi/2) %>% # rotate all angles by 90 degree or pi/2
+  mutate(Track_Angle = ifelse(Track_Angle > pi, Track_Angle - 2*pi, Track_Angle) ) %>%
+  mutate(Track_Angle = ifelse(Track_Angle < 0, Track_Angle + 2*pi, Track_Angle) ) 
+
+h1 <- plot.windrose(
+  spd = population$Track_Speed, 
+  dir = (180 * (population$Track_Angle) / pi), 
+  spdmin = 0, spdmax = 4.5, 
+  spdres = 0.5, 
+  dirres = 30, 
+  title_name = "Migration pattern first 50 frames test sequence 1 (toronto) ",
+  scale_name = "speed in pixel/frame"
+)
+
+
+```
