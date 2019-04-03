@@ -19,3 +19,4 @@ analysis_r/*.tar.gz
 
 # RStudio files
 analysis_r/.Rproj.user/
+.Rproj.user
