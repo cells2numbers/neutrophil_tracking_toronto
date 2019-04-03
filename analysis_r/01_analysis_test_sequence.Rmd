@@ -5,6 +5,7 @@ output: html_notebook
 
 ```{r}
 library(tidyverse)
+library(magrittr)
 library(migrationminer)
 source('windroseplot.r')
 ```
@@ -16,44 +17,75 @@ strata <- 'TrackObjects_Label'
 
 load profiles 
 ```{r}
-profiles <- read_csv("../profiles/201903_testsequence/IdentifyPrimaryObjects.csv") %>% 
+# profiles <- read_csv("../profiles/201903_testsequence/IdentifyPrimaryObjects.csv") %>% 
+profiles <- read_csv("../profiles/IdentifyPrimaryObjects.csv") %>% 
   mutate(Metadata_timepoint = as.numeric(Metadata_timepoint)) %>%
-  group_by(TrackObjects_Label)
+  group_by(TrackObjects_Label) 
+
 ```
 
 Create tracking profiles using migrationminer::track
 ```{r}
-tracks <- track(
-  profiles, 
-  strata = strata,
-  t_var = "Metadata_timepoint"
-  )  %>% 
-  print
+tracks <- track(profiles, strata = strata, t_var = "Metadata_timepoint" )  %>%   print
+```
+Sector analysis
+```{r}
+tracks %>% group_by(Track_Sector) %>% 
+  count %>% 
+  rename(n_per_sector  = n ) %>% 
+  mutate(fraction = n_per_sector / nrow(tracks)) %>%
+  print 
+
+
 ```
 
-A quick assessment of the track quality. A VOT >0.9 is a good tracking quality, this tracking result has a VOT = 0.78 that shows that the tracking could be improved. 
+A quick assessment of the track quality. A VOT >0.9 is a good tracking quality, this tracking result has a VOT = 0.84 that shows that the tracking could be improved. 
 ```{r}
 assess(tracks) %>% print
 ```
 
 Visualization of the migration pattern using a wind rose style plot. 
 ```{r}
-# we need to rotate all angles 
+
+plot_windrose <- function(population, title_name = "windrose plot", legend = "speed in pixel/frame", dir_res = 30, spd_res = 1){
+  # we need to rotate all angles 
 population <- tracks %>%
   filter(Track_Length > 19) %>%
   mutate(Track_Angle = Track_Angle + pi/2) %>% # rotate all angles by 90 degree or pi/2
   mutate(Track_Angle = ifelse(Track_Angle > pi, Track_Angle - 2*pi, Track_Angle) ) %>%
-  mutate(Track_Angle = ifelse(Track_Angle < 0, Track_Angle + 2*pi, Track_Angle) ) 
+  mutate(Track_Angle = ifelse(Track_Angle < 0, Track_Angle + 2*pi, Track_Angle) ) %>%
+  filter(!is.na(Track_Speed), !is.na(Track_Directionality)) 
 
-h1 <- plot.windrose(
-  spd = population$Track_Speed, 
-  dir = (180 * (population$Track_Angle) / pi), 
-  spdmin = 0, spdmax = 4.5, 
-  spdres = 0.5, 
-  dirres = 30, 
-  title_name = "Migration pattern first 50 frames test sequence 1 (toronto) ",
-  scale_name = "speed in pixel/frame"
-)
+  
+  h1 <- plot.windrose(
+    spd = population %>% extract2("Track_Speed"), 
+    dir = (180 * (population$Track_Angle) / pi), 
+    spdmin = 0, 
+    spdmax = quantile(tracks$Track_Speed,na.rm = TRUE,0.99), 
+    spdres = spd_res, 
+    dirres = dir_res, 
+    title_name =  title_name,
+    scale_name = legend
+  )
+} 
 
+plot_windrose(tracks)
+
+quantile(tracks$Track_Speed,na.rm = TRUE,0.975)
+```
+```{r}
+
+long_track_ids <- tracks %>% 
+  filter(Track_Length > 19) %>%
+  extract2("TrackObjects_Label") %>% 
+  print
+
+ggplot(
+  data = profiles %>% filter(TrackObjects_Label  %in% long_track_ids) , 
+  aes(x = Location_Center_X, y = Location_Center_Y, color = factor(TrackObjects_Label))
+) +
+  geom_point() + 
+  geom_smooth(se = FALSE) + 
+  theme(legend.position = "none")
 
 ```
